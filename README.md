@@ -16,9 +16,9 @@ All of them are quite important for us as for backend developers.
 
 Based on following articles:
 
-** Effective Go - https://golang.org/doc/effective_go.html#interface-names
+* Effective Go - https://golang.org/doc/effective_go.html#interface-names
 
-** Code review comments - https://github.com/golang/go/wiki/CodeReviewComments
+* Code review comments - https://github.com/golang/go/wiki/CodeReviewComments
 
 ## Avoid global variables
 
