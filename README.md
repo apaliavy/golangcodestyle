@@ -443,6 +443,12 @@ Naked returns are okay if the function is a handful of lines. Once it's a medium
 
 Finally, in some cases you need to name a result parameter in order to change it in a deferred closure. That is always OK.
 
+## Optimization
+
+Premature optimization is forbidden. Easy, clean and readable code >>>>> optimised code.
+
+If we need to optimise the code we need to first figure out the biggest problems, which usually means CPU profile on live data and then good benchmarks to compare the before and after results. Without its all useless.
+
 ## Package Names
 
 All references to names in your package will be done using the package name, so you can omit that name from the identifiers.
