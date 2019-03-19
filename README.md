@@ -1,4 +1,18 @@
-# Backend (Golang) Coding Guidelines
+# Before you start
+
+Please take a look to the following posts:
+
+* Real world advice for writing maintainable Go programs: https://dave.cheney.net/practical-go/presentations/qcon-china.html
+This article was originally a workshop at QCon Shanghai 2018. Author gives us his advice for best practices writing Go code.
+
+* Think you understand the Single Responsibility Principle? https://hackernoon.com/you-dont-understand-the-single-responsibility-principle-abfdd005b137
+
+* Layered Architecture (and how it shows up in Microservice Architectures): https://medium.com/code-smells/layered-architecture-f11bc04c5d6c
+
+All of them are quite important for us as for backend developers.
+
+# Golang Coding Guidelines
+
 
 Based on following articles:
 
@@ -159,12 +173,28 @@ See https://golang.org/doc/effective_go.html#commentary for more information abo
 Don't use panic for normal error handling. Use error and multiple return values.
 See https://golang.org/doc/effective_go.html#errors for more information.
 
-## Error Strings
+## Exports
 
-Error strings should not be capitalized (unless beginning with proper nouns or acronyms) or end with punctuation, since they are usually printed following other context.
+Do not export functions and variables unless necessary.
+
+Keep the exported variables and error in the same package that is using/returning them.
+For example i/o error like `io.EOF` from the go std lib is in the io package, where the function returning this error are also defined.
+
+## Errors
+
+* If your function return a specific error, and the caller might act differently if it receives this specific error, then document this behaviour.
+
+* Do not return an unique error (an package level error variable that is exported) unless you are sure that the caller might actually need to discern between such error and any other error.
+
+* Error strings should not be capitalized (unless beginning with proper nouns or acronyms) or end with punctuation, since they are usually printed following other context.
 That is, use `fmt.Errorf("something bad")` not `fmt.Errorf("Something bad")`, so that `log.Printf("Reading %s: %v", filename, err)` formats without a spurious capital letter mid-message.
-
 This does not apply to logging, which is implicitly line-oriented and not combined inside other messages.
+
+Also consider:
+
+* https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
+* https://dave.cheney.net/2016/04/07/constant-errors
+* https://dave.cheney.net/2014/12/24/inspecting-errors
 
 ## Getters and Setters
 
@@ -445,6 +475,52 @@ If in doubt, use a pointer, but there are times when a value receiver makes sens
 * If the receiver is a small array or struct that is naturally a value type (for instance, something like the time.Time type), with no mutable fields and no pointers, or is just a simple basic type such as int or string, a value receiver makes sense. A value receiver can reduce the amount of garbage that can be generated; if a value is passed to a value method, an on-stack copy can be used instead of allocating on the heap. (The compiler tries to be smart about avoiding this allocation, but it can't always succeed.) Don't choose a value receiver type for this reason without profiling first.
 * Finally, when in doubt, use a pointer receiver.
 
+## Structures initialization
+
+Do not initialise structs with empty values. It's not necessary and does not improve readability.
+
+Bad:
+
+```Go
+type MyStruct {
+    ValueA int
+    ValueB string
+    ValueC []float
+}
+
+var empty = MyStruct {
+    ValueA = 0,
+    ValueB = "",
+    ValueC= nil
+}
+```
+
+Good:
+
+```Go
+type MyStruct {
+    ValueA int
+    ValueB string
+    ValueC []float
+}
+
+var empty = MyStruct{}
+```
+
+The only exceptions is when initialising maps in a new struct:
+
+```Go
+type MyStruct {
+    Value map[string]string
+}
+
+var mapValue = MyStruct {
+    Value: map[string]string{},
+}
+```
+
+Even in such cases, consider writing constructor (NewMyStruct() *MyStruct)
+
 ## Synchronous Functions
 
 Prefer synchronous functions - functions which return their results directly or finish any callbacks or channel ops before returning - over asynchronous ones.
@@ -452,6 +528,28 @@ Prefer synchronous functions - functions which return their results directly or 
 Synchronous functions keep goroutines localized within a call, making it easier to reason about their lifetimes and avoid leaks and data races. They're also easier to test: the caller can pass an input and check the output without the need for polling or synchronization.
 
 If callers need more concurrency, they can add it easily by calling the function from a separate goroutine. But it is quite difficult - sometimes impossible - to remove unnecessary concurrency at the caller side.
+
+## Testing
+
+### Main
+
+No `TestMain` unless absolutely necessary. The reasoning behind it should be put in the function comment.
+
+### Mocks
+
+Use counterfeiter (https://github.com/maxbrunsfeld/counterfeiter) to generate the mocks.
+
+### Parallelism
+
+Try to use `t.Parallel()` for the top level tests and the table sub-tests when possible.
+
+### Table-driven tests
+
+Writing good tests is not trivial, but in many situations a lot of ground can be covered with table-driven tests: Each table entry is a complete test case with inputs and expected results, and sometimes with additional information such as a test name to make the test output easily readable.
+
+We also propose a single table driven test for success and failure cases.
+
+See https://github.com/golang/go/wiki/TableDrivenTests for more.
 
 ## Variable Names
 
