@@ -562,3 +562,9 @@ See https://github.com/golang/go/wiki/TableDrivenTests for more.
 Variable names in Go should be short rather than long. This is especially true for local variables with limited scope. Prefer `c` to `lineCount`. Prefer `i` to `sliceIndex`.
 
 The basic rule: the further from its declaration that a name is used, the more descriptive the name must be. For a method receiver, one or two letters is sufficient. Common variables such as loop indices and readers can be a single letter (`i`, `r`). More unusual things and global variables need more descriptive names.
+
+# Conclusion
+
+* If you are unsure about how to design something or how to handle errors in a specific case, have a look at the stdlib code - most of the time the go standard library is well written and designed.
+
+* If some kid of “solution”/approach is done in the stdlib it’s usually the right solution/approach.
