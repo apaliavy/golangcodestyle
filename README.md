@@ -16,9 +16,9 @@ All of them are quite important for us as for backend developers.
 
 Based on following articles:
 
-** Effective Go - https://golang.org/doc/effective_go.html#interface-names
+* Effective Go - https://golang.org/doc/effective_go.html#interface-names
 
-** Code review comments - https://github.com/golang/go/wiki/CodeReviewComments
+* Code review comments - https://github.com/golang/go/wiki/CodeReviewComments
 
 ## Avoid global variables
 
@@ -566,5 +566,4 @@ The basic rule: the further from its declaration that a name is used, the more d
 # Conclusion
 
 * If you are unsure about how to design something or how to handle errors in a specific case, have a look at the stdlib code - most of the time the go standard library is well written and designed.
-
 * If some kid of “solution”/approach is done in the stdlib it’s usually the right solution/approach.
