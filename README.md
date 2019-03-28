@@ -130,9 +130,16 @@ Favour small interfaces and only expect the interfaces you need in your funcs.
 
 https://godoc.org/golang.org/x/tools/cmd/goimports
 
-Command goimports updates your Go import lines, adding missing ones and removing unreferenced ones. In addition to fixing imports, goimports also formats your code in the same style as gofmt so it can be used as a replacement for your editor's gofmt-on-save hook.
+Command `goimports` updates your Go import lines, adding missing ones and removing unreferenced ones. In addition to fixing imports, goimports also formats your code in the same style as gofmt so it can be used as a replacement for your editor's gofmt-on-save hook.
 
-Run gofmt on your code to automatically fix the majority of mechanical style issues.
+Goimports will organize imports in groups, with blank lines between them. The standard library packages are always in the first group. Detailed order/formatting:
+
+* Standard library
+* Project internal packages
+* Company internal packages
+* External packages
+
+For an example please see "Imports" section of this document.
 
 ## Comment Sentences
 Comments documenting declarations should be full sentences, even if that seems a little redundant. Comments should begin with the name of the thing being described and end in a period:
@@ -403,6 +410,51 @@ There is no rigid line length limit in Go code, but avoid uncomfortably long lin
 Most of the time when people wrap lines "unnaturally" (in the middle of function calls or function declarations, more or less, say, though some exceptions are around), the wrapping would be unnecessary if they had a reasonable number of parameters and reasonably short variable names. Long lines seem to go with long names, and getting rid of the long names helps a lot.
 
 In other words, break lines because of the semantics of what you're writing (as a general rule) and not because of the length of the line. If you find that this produces lines that are too long, then change the names or the semantics and you'll probably get a good result.
+
+## Logging
+
+Some words about logging in Golang: https://dave.cheney.net/2015/11/05/lets-talk-about-logging
+
+By default we're using logrus package: https://github.com/sirupsen/logrus
+
+Logrus encourages careful, structured logging through logging fields instead of long, unparseable error messages. For example, instead of: `log.Fatalf("Failed to send event %s to topic %s with key %d")`, you should log the much more discoverable:
+```
+log.WithFields(log.Fields{
+  "event": event,
+  "topic": topic,
+  "key": key,
+}).Fatal("Failed to send event")
+```
+
+Logrus has seven logging levels: Trace, Debug, Info, Warning, Error, Fatal and Panic.
+
+```
+log.Trace("Something very low level.")
+log.Debug("Useful debugging information.")
+log.Info("Something noteworthy happened!")
+log.Warn("You should probably take a look at this.")
+log.Error("Something failed but I'm not quitting.")
+// Calls os.Exit(1) after logging
+log.Fatal("Bye.")
+// Calls panic() after logging
+log.Panic("I'm bailing.")
+```
+
+You can set the logging level on a Logger, then it will only log entries with that severity or anything above it:
+```
+// Will log anything that is info or above (warn, error, fatal, panic). Default.
+log.SetLevel(log.InfoLevel)
+```
+
+It may be useful to set `log.Level = logrus.DebugLevel` in a debug or verbose environment if your application has that.
+
+Besides the fields added with WithField or WithFields some fields are automatically added to all logging events:
+
+* `time`. The timestamp when the entry was created.
+* `msg`. The logging message passed to {Info,Warn,Error,Fatal,Panic} after the AddFields call. E.g. Failed to send event.
+* `level`. The logging level. E.g. info.
+
+In our services we also use an additional field: `correlation_id`. It allows us to trace requests call stack.
 
 ## Mixed Caps
 
