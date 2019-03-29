@@ -440,21 +440,19 @@ log.Fatal("Bye.")
 log.Panic("I'm bailing.")
 ```
 
-You can set the logging level on a Logger, then it will only log entries with that severity or anything above it:
-```
-// Will log anything that is info or above (warn, error, fatal, panic). Default.
-log.SetLevel(log.InfoLevel)
-```
+If the function needs to add more tags to the log, it can use `WithFields` function. The function will return a copy of the logger, so the parent logger will not be modified when the function returns.
+In our services we use an additional field: `correlation_id`. It allows us to trace requests call stack.
 
-It may be useful to set `log.Level = logrus.DebugLevel` in a debug or verbose environment if your application has that.
+We should be logging the correlation ID in our logs wherever possible (that is when the flow is initiated by an user action (http/grpc call).
+To do this we need to use function `LoggerFromContext` from https://github.com/karhoo/lib-common/log package.
+
+After that we should pass logger to the child functions as a function argument.
 
 Besides the fields added with WithField or WithFields some fields are automatically added to all logging events:
 
 * `time`. The timestamp when the entry was created.
 * `msg`. The logging message passed to {Info,Warn,Error,Fatal,Panic} after the AddFields call. E.g. Failed to send event.
 * `level`. The logging level. E.g. info.
-
-In our services we also use an additional field: `correlation_id`. It allows us to trace requests call stack.
 
 ## Mixed Caps
 
