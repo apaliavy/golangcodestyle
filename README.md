@@ -99,6 +99,56 @@ func init() {
 
 Side effects are only okay in special cases (e.g. parsing flags in a cmd). If you find no other way, rethink and refactor.
 
+## Interfaces
+
+Go interfaces generally belong in the package that uses values of the interface type, not the package that implements those values. The implementing package should return concrete (usually pointer or struct) types: that way, new methods can be added to implementations without requiring extensive refactoring.
+
+Do not define interfaces on the implementor side of an API "for mocking"; instead, design the API so that it can be tested using the public API of the real implementation.
+
+Do not define interfaces before they are used: without a realistic example of usage, it is too difficult to see whether an interface is even necessary, let alone what methods it ought to contain
+
+Bad:
+
+```Go
+package producer
+
+type Thinger interface { Thing() bool }
+
+type defaultThinger struct{ … }
+func (t defaultThinger) Thing() bool { … }
+
+func NewThinger() Thinger { return defaultThinger{ … } }
+```
+
+Good:
+
+```Go
+package producer
+
+type Thinger struct{ … }
+func (t Thinger) Thing() bool { … }
+
+func NewThinger() Thinger { return Thinger{ … } }
+```
+
+and then:
+
+```Go
+package consumer  // consumer.go
+
+type Thinger interface { Thing() bool }
+
+func Foo(t Thinger) string { … }
+```
+
+```Go
+package consumer // consumer_test.go
+
+type fakeThinger struct{ … }
+func (t fakeThinger) Thing() bool { … }
+…
+if Foo(fakeThinger{…}) == "x" { … }
+```
 
 ## Interface names
 
@@ -136,7 +186,13 @@ func run(srv Server) {
 }
 ```
 
-Favour small interfaces and only expect the interfaces you need in your funcs.
+### Mocks
+
+Use counterfeiter (https://github.com/maxbrunsfeld/counterfeiter) to generate the mocks.
+Using counterfeiter conflicts with the guidelines presented above :(. 
+One way around it (I would appreciate better ideas!) is to create an interface inside the package that have declared the mocked struct, and then create mock based on this interface. 
+Then you can still use another interface declared in the package that uses the mocked struct to use the mock in the tests. 
+It means two inteface declarations, but little code duplication is better than the alternatiives in my opinion.
 
 ## Imports
 
@@ -249,6 +305,47 @@ Do not discard errors using _ variables. If a function returns an error, check i
 See https://golang.org/doc/effective_go.html#errors for more information.
 
 
+## In-Band Errors
+
+In C and similar languages, it's common for functions to return values like -1 or null to signal errors or missing results:
+
+```Go:
+// Lookup returns the value for key or "" if there is no mapping for key.
+func Lookup(key string) string
+
+// Failing to check a for an in-band error value can lead to bugs:
+Parse(Lookup(key))  // returns "parse failure for value" instead of "no value for key"
+```
+
+Go's support for multiple return values provides a better solution. Instead of requiring clients to check for an in-band error value, a function should return an additional value to indicate whether its other return values are valid. This return value may be an error, or a boolean when no explanation is needed. It should be the final return value.
+
+```Go:
+// Lookup returns the value for key or ok=false if there is no mapping for key.
+func Lookup(key string) (value string, ok bool)
+```
+
+This prevents the caller from using the result incorrectly:
+
+```Go:
+Parse(Lookup(key))  // compile-time error
+```
+
+And encourages more robust and readable code:
+
+```Go:
+value, ok := Lookup(key)
+if !ok  {
+    return fmt.Errorf("no value for %q", key)
+}
+return Parse(value)
+```
+
+This rule applies to exported functions but is also useful for unexported functions.
+
+Return values like nil, "", 0, and -1 are fine when they are valid results for a function, that is, when the caller need not handle them differently from other values.
+
+Some standard library functions, like those in package "strings", return in-band error values. This greatly simplifies string-manipulation code at the cost of requiring more diligence from the programmer. In general, Go code should return additional values for errors.
+
 ## Getters and Setters
 
 Go doesn't provide automatic support for getters and setters. There's nothing wrong with providing getters and setters yourself, and it's often appropriate to do so, but it's neither idiomatic nor necessary to put `Get` into the getter's name.
@@ -309,47 +406,6 @@ if err != nil {
 ```
 
 
-## In-Band Errors
-
-In C and similar languages, it's common for functions to return values like -1 or null to signal errors or missing results:
-
-```Go:
-// Lookup returns the value for key or "" if there is no mapping for key.
-func Lookup(key string) string
-
-// Failing to check a for an in-band error value can lead to bugs:
-Parse(Lookup(key))  // returns "parse failure for value" instead of "no value for key"
-```
-
-Go's support for multiple return values provides a better solution. Instead of requiring clients to check for an in-band error value, a function should return an additional value to indicate whether its other return values are valid. This return value may be an error, or a boolean when no explanation is needed. It should be the final return value.
-
-```Go:
-// Lookup returns the value for key or ok=false if there is no mapping for key.
-func Lookup(key string) (value string, ok bool)
-```
-
-This prevents the caller from using the result incorrectly:
-
-```Go:
-Parse(Lookup(key))  // compile-time error
-```
-
-And encourages more robust and readable code:
-
-```Go:
-value, ok := Lookup(key)
-if !ok  {
-    return fmt.Errorf("no value for %q", key)
-}
-return Parse(value)
-```
-
-This rule applies to exported functions but is also useful for unexported functions.
-
-Return values like nil, "", 0, and -1 are fine when they are valid results for a function, that is, when the caller need not handle them differently from other values.
-
-Some standard library functions, like those in package "strings", return in-band error values. This greatly simplifies string-manipulation code at the cost of requiring more diligence from the programmer. In general, Go code should return additional values for errors.
-
 ## Initialisms
 
 Words in names that are initialisms or acronyms (e.g. "URL" or "NATO") have a consistent case. For example, "URL" should appear as "URL" or "url" (as in "urlPony", or "URLPony"), never as "Url". As an example: ServeHTTP not ServeHttp. For identifiers with multiple initialized "words", use for example "xmlHTTPRequest" or "XMLHTTPRequest".
@@ -358,56 +414,6 @@ This rule also applies to "ID" when it is short for "identifier" (which is prett
 
 Code generated by the protocol buffer compiler is exempt from this rule. Human-written code is held to a higher standard than machine-written code.
 
-## Interfaces
-
-Go interfaces generally belong in the package that uses values of the interface type, not the package that implements those values. The implementing package should return concrete (usually pointer or struct) types: that way, new methods can be added to implementations without requiring extensive refactoring.
-
-Do not define interfaces on the implementor side of an API "for mocking"; instead, design the API so that it can be tested using the public API of the real implementation.
-
-Do not define interfaces before they are used: without a realistic example of usage, it is too difficult to see whether an interface is even necessary, let alone what methods it ought to contain
-
-Bad:
-
-```Go
-package producer
-
-type Thinger interface { Thing() bool }
-
-type defaultThinger struct{ … }
-func (t defaultThinger) Thing() bool { … }
-
-func NewThinger() Thinger { return defaultThinger{ … } }
-```
-
-Good:
-
-```Go
-package producer
-
-type Thinger struct{ … }
-func (t Thinger) Thing() bool { … }
-
-func NewThinger() Thinger { return Thinger{ … } }
-```
-
-and then:
-
-```Go
-package consumer  // consumer.go
-
-type Thinger interface { Thing() bool }
-
-func Foo(t Thinger) string { … }
-```
-
-```Go
-package consumer // consumer_test.go
-
-type fakeThinger struct{ … }
-func (t fakeThinger) Thing() bool { … }
-…
-if Foo(fakeThinger{…}) == "x" { … }
-```
 
 ## Line Length
 
@@ -512,6 +518,11 @@ For example, if you are in package `chubby`, you don't need type `ChubbyFile`, w
 
 See http://golang.org/doc/effective_go.html#package-names and http://blog.golang.org/package-names for more.
 
+## Variable Names
+
+Variable names in Go should be short rather than long. This is especially true for local variables with limited scope. Prefer `c` to `lineCount`. Prefer `i` to `sliceIndex`.
+
+The basic rule: the further from its declaration that a name is used, the more descriptive the name must be. For a method receiver, one or two letters is sufficient. Common variables such as loop indices and readers can be a single letter (`i`, `r`). More unusual things and global variables need more descriptive names.
 ## Pass Values
 
 Don't pass pointers as function arguments just to save a few bytes. If a function refers to its argument `x` only as `*x` throughout, then the argument shouldn't be a pointer. Common instances of this include passing a pointer to a string (`*string`) or a pointer to an interface value (`*io.Reader`). In both cases the value itself is a fixed size and can be passed directly. This advice does not apply to large structs, or even small structs that might grow.
@@ -612,12 +623,6 @@ Writing good tests is not trivial, but in many situations a lot of ground can be
 We also propose a single table driven test for success and failure cases.
 
 See https://github.com/golang/go/wiki/TableDrivenTests for more.
-
-## Variable Names
-
-Variable names in Go should be short rather than long. This is especially true for local variables with limited scope. Prefer `c` to `lineCount`. Prefer `i` to `sliceIndex`.
-
-The basic rule: the further from its declaration that a name is used, the more descriptive the name must be. For a method receiver, one or two letters is sufficient. Common variables such as loop indices and readers can be a single letter (`i`, `r`). More unusual things and global variables need more descriptive names.
 
 # Conclusion
 
