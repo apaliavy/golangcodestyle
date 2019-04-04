@@ -5,6 +5,10 @@ Please take a look to the following posts:
 * Real world advice for writing maintainable Go programs: https://dave.cheney.net/practical-go/presentations/qcon-china.html
 This article was originally a workshop at QCon Shanghai 2018. Author gives us his advice for best practices writing Go code.
 
+* Ho to structure your go project: https://github.com/golang-standards/project-layout
+
+* Packages that you *should not* create: https://dave.cheney.net/2019/01/08/avoid-package-names-like-base-util-or-common
+
 * Think you understand the Single Responsibility Principle? https://hackernoon.com/you-dont-understand-the-single-responsibility-principle-abfdd005b137
 
 * Layered Architecture (and how it shows up in Microservice Architectures): https://medium.com/code-smells/layered-architecture-f11bc04c5d6c
@@ -12,7 +16,6 @@ This article was originally a workshop at QCon Shanghai 2018. Author gives us hi
 All of them are quite important for us as for backend developers.
 
 # Golang Coding Guidelines
-
 
 Based on following articles:
 
@@ -96,6 +99,15 @@ func init() {
 
 Side effects are only okay in special cases (e.g. parsing flags in a cmd). If you find no other way, rethink and refactor.
 
+
+## Interface names
+
+By convention, one-method interfaces are named by the method name plus an -er suffix or similar modification to construct an agent noun: `Reader`, `Writer`, `Formatter`, `CloseNotifier` etc.
+
+There are a number of such names and it's productive to honor them and the function names they capture. `Read`, `Write`, `Close`, `Flush`, `String` and so on have canonical signatures and meanings.
+To avoid confusion, don't give your method one of those names unless it has the same signature and meaning. Conversely, if your type implements a method with the same meaning as a method on a well-known type, give it the same name and signature; call your string-converter method `String` not `ToString`.
+
+
 ## Don't over-interface
 
 Bad:
@@ -126,6 +138,33 @@ func run(srv Server) {
 
 Favour small interfaces and only expect the interfaces you need in your funcs.
 
+## Imports
+
+Avoid renaming imports except to avoid a name collision; good package names should not require renaming. In the event of collision, prefer to rename the most local or project-specific import.
+
+Imports are organized in groups, with blank lines between them. The standard library packages are always in the first group (goimports will do this for you).
+
+```Go
+package main
+
+import (
+	"fmt"
+	"hash/adler32"
+	"os"
+
+	"appengine/foo"
+	"appengine/user"
+
+	"rsc.io/goversion/version"
+)
+```
+
+Divide imports into four groups sorted from internal to external for readability:
+* Standard library
+* Project internal packages
+* Company internal packages
+* External packages
+
 ## Goimports
 
 https://godoc.org/golang.org/x/tools/cmd/goimports
@@ -152,6 +191,12 @@ type Request struct { ...
 func Encode(w io.Writer, req *Request) { ...
 ```
 
+## Doc Comments
+
+All top-level, exported names should have doc comments, as should non-trivial unexported type or function declarations.
+See https://golang.org/doc/effective_go.html#commentary for more information about commentary conventions.
+
+
 ## Declaring Empty Slices
 
 When declaring an empty slice, prefer
@@ -169,11 +214,6 @@ t := []string{}
 The former declares a nil slice value, while the latter is non-nil but zero-length. They are functionally equivalent—their len and cap are both zero—but the nil slice is the preferred style.
 
 Note that there are limited circumstances where a non-nil but zero-length slice is preferred, such as when encoding JSON objects (a nil slice encodes to null, while []string{} encodes to the JSON array []).
-
-## Doc Comments
-
-All top-level, exported names should have doc comments, as should non-trivial unexported type or function declarations.
-See https://golang.org/doc/effective_go.html#commentary for more information about commentary conventions.
 
 ## Don't Panic
 
@@ -203,6 +243,12 @@ Also consider:
 * https://dave.cheney.net/2016/04/07/constant-errors
 * https://dave.cheney.net/2014/12/24/inspecting-errors
 
+## Handle Errors
+
+Do not discard errors using _ variables. If a function returns an error, check it to make sure the function succeeded. Handle the error, return it, or, in truly exceptional situations, panic.
+See https://golang.org/doc/effective_go.html#errors for more information.
+
+
 ## Getters and Setters
 
 Go doesn't provide automatic support for getters and setters. There's nothing wrong with providing getters and setters yourself, and it's often appropriate to do so, but it's neither idiomatic nor necessary to put `Get` into the getter's name.
@@ -215,12 +261,6 @@ if owner != user {
     obj.SetOwner(user)
 }
 ```
-
-## Handle Errors
-
-Do not discard errors using _ variables. If a function returns an error, check it to make sure the function succeeded. Handle the error, return it, or, in truly exceptional situations, panic.
-See https://golang.org/doc/effective_go.html#errors for more information.
-
 
 ## Happy-path program flow
 
@@ -267,40 +307,6 @@ if err != nil {
 }
 // use x
 ```
-
-## Interface names
-
-By convention, one-method interfaces are named by the method name plus an -er suffix or similar modification to construct an agent noun: `Reader`, `Writer`, `Formatter`, `CloseNotifier` etc.
-
-There are a number of such names and it's productive to honor them and the function names they capture. `Read`, `Write`, `Close`, `Flush`, `String` and so on have canonical signatures and meanings.
-To avoid confusion, don't give your method one of those names unless it has the same signature and meaning. Conversely, if your type implements a method with the same meaning as a method on a well-known type, give it the same name and signature; call your string-converter method `String` not `ToString`.
-
-## Imports
-
-Avoid renaming imports except to avoid a name collision; good package names should not require renaming. In the event of collision, prefer to rename the most local or project-specific import.
-
-Imports are organized in groups, with blank lines between them. The standard library packages are always in the first group (goimports will do this for you).
-
-```Go
-package main
-
-import (
-	"fmt"
-	"hash/adler32"
-	"os"
-
-	"appengine/foo"
-	"appengine/user"
-
-	"rsc.io/goversion/version"
-)
-```
-
-Divide imports into four groups sorted from internal to external for readability:
-* Standard library
-* Project internal packages
-* Company internal packages
-* External packages
 
 
 ## In-Band Errors
